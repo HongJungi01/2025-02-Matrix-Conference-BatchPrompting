@@ -213,7 +213,42 @@ with tab1:
     
     if st.session_state.entry_analysis:
         st.markdown("---")
-        st.markdown(st.session_state.entry_analysis)
+        
+        # [수정] 분석 결과 가독성 개선 (Dictionary/String 다형성 처리)
+        analysis_data = st.session_state.entry_analysis
+        
+        if isinstance(analysis_data, dict):
+            st.subheader(f"📋 분석 리포트 ({len(analysis_data)}개 시나리오)")
+            
+            for key, content in analysis_data.items():
+                # 텍스트 줄바꿈 분리
+                lines = [line.strip() for line in content.split('\n') if line.strip()]
+                
+                # Expander 제목 생성 ('1. 상대 예상 선출' 내용 활용)
+                head_title = f"Scenario {key}"
+                for line in lines:
+                    if "1." in line and ":" in line:
+                        # "1. 상대 예상 선출: 미라이돈..." -> "미라이돈..." 추출
+                        head_title = line.split(":", 1)[1].strip()
+                        break
+                
+                with st.expander(f"🏁 상대 선출: {head_title}", expanded=False):
+                    for line in lines:
+                        if "1." in line:
+                            st.write(f"🔴 **{line}**")
+                        elif "2." in line:
+                            st.success(f"**{line}**") # 나의 선출은 초록색 강조
+                        elif "3." in line:
+                            # 승리 플랜은 파란색 알림 박스
+                            plan_content = line.split(":", 1)[1].strip() if ":" in line else line
+                            st.info(f"💡 **승리 플랜:**\n\n{plan_content}")
+                        else:
+                            st.write(line)
+                            
+        elif isinstance(analysis_data, str):
+            st.info(analysis_data)
+        else:
+            st.write(analysis_data)
         
         # 하단 토큰 리포트
         st.divider()
