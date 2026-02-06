@@ -165,41 +165,7 @@ def extract_clean_content(response):
         return str(content)
     except Exception as e:
         return f"Error: {e}"
-
-def parse_opponent_input(user_input):
-    """
-    Returns: (parsed_list, token_usage_dict)
-    """
-    print(f"🔄 입력된 파티 정보를 표준화(English Mapping) 중입니다...")
-    parser_template = """
-    당신은 포켓몬 이름 번역기입니다. 
-    사용자가 입력한 한국어 포켓몬 이름(약어/별명 포함)을 **Smogon/Showdown에서 사용하는 정확한 영어 공식 명칭**으로 변환하세요.
-    입력: "{user_input}"
-    출력 형식: Python List of Strings (예: ["Name1", "Name2"]) - Markdown 없이 리스트만 출력.
-    매핑 예시: "날치머"->"Flutter Mane", "물라오스"->"Urshifu-Rapid-Strike", "망나뇽"->"Dragonite"
-    """
-    try:
-        response = llm.invoke(parser_template.format(user_input=user_input))
         
-        # 토큰 정보 추출
-        token_info = get_token_info(response)
-        print(f"💰 [Parser] Tokens: I:{token_info['input_tokens']} + O:{token_info['output_tokens']} = {token_info['total_tokens']}")
-
-        content = extract_clean_content(response)
-        clean_content = content.replace("```json", "").replace("```python", "").replace("```", "").strip()
-        
-        parsed_data = []
-        try:
-            parsed_data = json.loads(clean_content)
-        except:
-            parsed_data = ast.literal_eval(clean_content)
-            
-        return parsed_data, token_info
-        
-    except Exception as e:
-        print(f"❌ 이름 변환 실패: {e}")
-        return [], {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
-
 def parse_opponent_input(user_input_batch):
     """
     [Batch Process] 여러 파티 정보를 한번에 번역
@@ -348,10 +314,26 @@ def analyze_entry_strategy(opponent_input):
     [Batch Opponent Data]
     {batch_context_text}
 
-    [분석 로직 (각 파티별 적용)]
-    1. **선봉 결정**: Simulation Report의 '🚀선공' 및 '확정 1타' 여부를 최우선 기준으로 삼으세요.
-    2. **스피드 싸움**: '🐢후공'은 위험하므로 피하는 쪽으로 설계하세요.
-    3. **선출 구성**: 선봉 + 에이스 + 쿠션 밸런스를 맞추세요.
+    [분석 로직]
+    1. **선봉 결정 (Lead Check)**: [3. 시뮬레이션 결과]를 보세요. 상대 유력 선봉(TOP 3)을 상대로 '🚀선공'이면서 '확정 1타'를 내는 포켓몬이 있다면 최고의 선봉입니다.
+    2. **스피드 싸움**: 시뮬레이션에서 '🐢후공'이 뜨는 대면은 위험합니다. 기합의띠나 내구 보정이 없다면 피하세요.
+    3. **선출 구성**: 선봉을 이길 수 있는 포켓몬 1마리 + 일관성 있는 에이스 1마리 + 쿠션 1마리로 구성하세요.
+
+    [결과 리포트 양식]
+
+    
+    1. **나의 추천 선출**:
+       - **세 마리 구성 요약: [포켓몬 이름], [포켓몬 이름], [포켓몬 이름]**
+       - **선봉(Lead): [포켓몬 이름]**
+         - 선정 이유: **(시뮬레이션 결과 인용 필수)** 예: "상대 딩루 상대로 선공이며, 인파이트로 확정 1타가 나옵니다."
+       - **후속(Back): [포켓몬 이름], [포켓몬 이름]**
+         - 역할: (에이스 / 쿠션 / 스위퍼)
+
+    2. **상대 예상 선출 (Top 3)**: [이름], [이름], [이름]
+       - 이유: (선봉 확률 통계 및 내 파티와의 상성 고려)
+
+    3. **승리 플랜 (Game Plan)**:
+       - (초반 운영과 주의해야 할 상대의 테라스탈/도구 변수를 3줄 요약)
 
     [출력 형식 (JSON Only)]
     각 키(party_N)에 대한 값은 아래 포맷의 문자열이어야 합니다.
